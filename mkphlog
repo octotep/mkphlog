@@ -1,0 +1,146 @@
+#!/bin/ksh
+
+# mkphlog - a utility to ease the creation of phlogs.
+#           Organizes phlog posts in separate directories.
+# Created by octotep; anyone can distribute, modify, and 
+# share this file however they please.
+#
+# Version 0.2
+#
+# Please note, all date strings are in the form of mm/dd/yy(yy)
+
+# The base of the entire gopher site.
+# SDF default: $HOME/gopher
+gopherRoot="$HOME/gopher"
+
+# The name of the phlog directory (contained in $gopherHome)
+phlogDirName="phlog"
+
+# Default editor, unless the user has one specified in env
+editor=${EDITOR:-nano}
+
+# Default timezone, unless the user has one specified in env
+TZ=${TZ:-UTC}
+
+# Controls whether the post is automatically added to the main 
+# phlog page. If so, Each entry looks like: "BlabBlabBlab (mm/dd/yy)",
+# otherwise, links will need to be manually added.
+addTitleToMain=true
+
+# Tells the script how many lines the title of the main page spans.
+# Used to insert the newest post at the top.
+# Titles created by mkphlog are 2 lines.
+# Isn't used if $addTitleToMain is false
+titleLineCount=3
+
+
+# Creates the phlog directory if it dosen't already exist.
+CreatePhlogDir() {
+	mkdir $phlogDirName
+	chmod 755 $phlogDirName
+	cd $phlogDirName
+	echo -n "What would you like to name your phlog? "
+	read phlogNameAns
+	echo $phlogNameAns > gophermap
+	echo "=======================================" >> gophermap
+	echo >> gophermap
+	chmod 644 $gopherRoot/$phlogDirName/gophermap
+	echo "Phlog directory and main gophermap file created." 
+}
+
+# Updates the main phlog listing
+UpdatePhlogListing() {
+	# Arg 1: Title
+	# Arg 2: entryDate
+	
+	# Just in case the user didn't specify a title
+	if [ "$postTitleAns" = "" ] ; then
+		echo -n "Do you want to create a blank post? (y/n) "
+		read blankPostAns
+		case $blankPastAns in
+			y* | Y* ) $postTitleAns="New Post" ;;
+			n* | N* ) echo "Goodbye, then." ; exit 1 ;;
+			* ) exit 1 ;;
+		esac	
+	fi
+	# If the user wants the post automatically added to the 
+	# main page, do it.
+	if [ $addTitleToMain = true ] ; then
+		cd $gopherRoot/$phlogDirName/
+		# Break up the gophermap
+		totalLineCount=$(wc -l gophermap | cut -d " " -f 8)
+		linesLeft=$(echo "$totalLineCount - $titleLineCount" | bc)
+		head -n $titleLineCount gophermap > title.tmp
+		tail -n $linesLeft gophermap > gophermap.tmp
+		# Recreate the gophermap
+		rm gophermap
+		cat title.tmp > gophermap
+		echo "1${postTitleAns} (${entryDate})\t./${entryDate}" >> gophermap
+		cat gophermap.tmp >> gophermap
+		rm title.tmp gophermap.tmp
+		chmod 644 $gopherRoot/$phlogDirName/gophermap
+	fi
+	cd $gopherRoot/$phlogDirName/$entryDate/
+	echo $postTitleAns >> gophermap
+	date "+%A %b %e %l:%M:%S %Y" >> gophermap
+	echo "------------------------------" >> gophermap
+	echo >> gophermap
+}
+
+
+if [ -d $gopherRoot ] ; then
+    cd $gopherRoot
+else
+	echo "You don't have a gopherspace set-up. Please run the mkgopher utility."
+	exit 1
+fi
+
+if [ -d $phlogDirName ] ; then
+	cd $phlogDirName
+else
+	echo -n "Do you want to create a phlog directory? (y/n) "
+	read phlogDirAns
+	case $phlogDirAns in
+		y* | Y* ) CreatePhlogDir ;;
+		n* | N* ) exit 1 ;;
+		* ) exit 1 ;;
+	esac
+fi
+
+echo -n "Would you like to create a phlog entry for today? (y/n) "
+read phlogAns
+case $phlogAns in
+	y* | Y* ) echo "Creating today's phlog entry..." ;;
+	n* | N* ) exit 0 ;;
+	* ) exit 1 ;;
+esac
+
+entryDate=`date +%m-%d-%y`
+# Make sure there isn't a post for that day, lest we overwrite it.
+if [ ! -d $entryDate ]; then
+	mkdir $entryDate
+	chmod 755 $entryDate
+	cd $entryDate
+	touch gophermap
+	chmod 644 gophermap
+	echo -n "Title: "
+	read postTitleAns
+	UpdatePhlogListing
+	echo -n "Would you like to edit the post with $editor? (y/n) "
+	read editorAns
+	case $editorAns in
+		y* | Y* ) $editor $gopherRoot/$phlogDirName/$entryDate/gophermap ;;
+		n* | N* ) exit 0 ;;
+		* ) exit 0 ;;
+	esac
+else
+	echo "There is already a post for today."
+	echo -n "Would you like to edit the post with $editor? (y/n) "
+	read editorAns
+	case $editorAns in
+		y* | Y* ) $editor $gopherRoot/$phlogDirName/$entryDate/gophermap ;;
+		n* | N* ) exit 0 ;;
+		* ) exit 1 ;;
+	esac
+fi
+exit 0

@@ -1,0 +1,5 @@
+Version: 0.2
+Features:
+  -Organizes each post by directory
+  -Automatically adds new posts to top of main phlog listing
+  -More customizible
