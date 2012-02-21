@@ -1,3 +1,11 @@
+Version 0.3
+Fixes:
+  -Fixes bug which only allows a certain number of posts before 
+going haywire
+  -Fixes error in creating a blank post with no title
+Features:
+  -touches the main gophermap file in order to update the date
+
 Version: 0.2
 Features:
   -Organizes each post by directory

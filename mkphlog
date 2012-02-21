@@ -5,7 +5,7 @@
 # Created by octotep; anyone can distribute, modify, and 
 # share this file however they please.
 #
-# Version 0.2
+# Version 0.3
 #
 # Please note, all date strings are in the form of mm/dd/yy(yy)
 
@@ -29,7 +29,7 @@ addTitleToMain=true
 
 # Tells the script how many lines the title of the main page spans.
 # Used to insert the newest post at the top.
-# Titles created by mkphlog are 2 lines.
+# Titles created by mkphlog are 3 lines.
 # Isn't used if $addTitleToMain is false
 titleLineCount=3
 
@@ -50,14 +50,11 @@ CreatePhlogDir() {
 
 # Updates the main phlog listing
 UpdatePhlogListing() {
-	# Arg 1: Title
-	# Arg 2: entryDate
-	
 	# Just in case the user didn't specify a title
 	if [ "$postTitleAns" = "" ] ; then
 		echo -n "Do you want to create a blank post? (y/n) "
 		read blankPostAns
-		case $blankPastAns in
+		case $blankPostAns in
 			y* | Y* ) $postTitleAns="New Post" ;;
 			n* | N* ) echo "Goodbye, then." ; exit 1 ;;
 			* ) exit 1 ;;
@@ -68,7 +65,7 @@ UpdatePhlogListing() {
 	if [ $addTitleToMain = true ] ; then
 		cd $gopherRoot/$phlogDirName/
 		# Break up the gophermap
-		totalLineCount=$(wc -l gophermap | cut -d " " -f 8)
+		totalLineCount=$(wc -l gophermap | sed -e 's/ //g' -e 's/gophermap//')
 		linesLeft=$(echo "$totalLineCount - $titleLineCount" | bc)
 		head -n $titleLineCount gophermap > title.tmp
 		tail -n $linesLeft gophermap > gophermap.tmp
@@ -115,6 +112,8 @@ case $phlogAns in
 	* ) exit 1 ;;
 esac
 
+# Touch the main gophermap, for the SDF phlogosphere
+touch $gopherRoot/gophermap
 entryDate=`date +%m-%d-%y`
 # Make sure there isn't a post for that day, lest we overwrite it.
 if [ ! -d $entryDate ]; then
