@@ -1,3 +1,8 @@
+Version 0.4
+Features:
+  -Allow posts to be written in a separate file.
+  -Allows mkphlog to be run in silent mode, with no prompts.
+
 Version 0.3
 Fixes:
   -Fixes bug which only allows a certain number of posts before 

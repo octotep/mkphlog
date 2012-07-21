@@ -5,7 +5,7 @@
 # Created by octotep; anyone can distribute, modify, and 
 # share this file however they please.
 #
-# Version 0.3
+# Version 0.4
 #
 # Please note, all date strings are in the form of mm/dd/yy(yy)
 
@@ -15,6 +15,12 @@ gopherRoot="$HOME/gopher"
 
 # The name of the phlog directory (contained in $gopherHome)
 phlogDirName="phlog"
+
+# Current working directory of the script
+cwd=$(pwd)
+
+# File name for a post
+postFile=""
 
 # Default editor, unless the user has one specified in env
 editor=${EDITOR:-nano}
@@ -33,6 +39,55 @@ addTitleToMain=true
 # Isn't used if $addTitleToMain is false
 titleLineCount=3
 
+#Command-line flags
+silentMode=false
+
+# Prints the help screen and exits
+DisplayHelp() {
+	echo "mkphlog [-hs] [file_with_post] [title] "
+	echo
+	echo "Updates a phlog created in the mkphlog format"
+	echo "Options:"
+	echo "  -s    Run the script in silent mode. As long as a file"
+	echo "        with the post is specified, the script will publish"
+	echo "        the post without prompting the user for any information"
+	echo "        If no title is specified, the title is the filename."
+	echo "        (Underscore characters are considered spaces)."
+	echo
+	echo "  -h    Display this help"
+	echo
+	echo "Created by Chris Yealy (octotep)"
+	echo "The newest version can be found at:"
+	echo "gopher://sdf.org/1/users/octotep/dls/mkphlog"
+	echo "or"
+	echo "https://bitbucket.org/octotep/mkphlog/"
+	exit 0
+}
+
+# Tests for a gopher directory. Exits on failure.
+TestForGopherDirectory() {
+	if [ -d $gopherRoot ] ; then
+		cd $gopherRoot
+	else
+		echo "You don't have a gopherspace set-up. Please run the mkgopher utility."
+		exit 1
+	fi
+}
+
+# Tests for a phlog directory. If one doesn't exist, create it.
+TestForPhlogDirectory() {
+	if [ -d $phlogDirName ] ; then
+		cd $phlogDirName
+	else
+		echo -n "Do you want to create a phlog directory? (y/n) "
+		read phlogDirAns
+		case $phlogDirAns in
+			y* | Y* ) CreatePhlogDir ;;
+			n* | N* ) exit 1 ;;
+			* ) exit 1 ;;
+		esac
+	fi
+}
 
 # Creates the phlog directory if it dosen't already exist.
 CreatePhlogDir() {
@@ -48,18 +103,27 @@ CreatePhlogDir() {
 	echo "Phlog directory and main gophermap file created." 
 }
 
+# Create phlog entry
+CreatePhlogEntry() {
+	echo "Creating today's phlog entry..."
+	# Touch the main gophermap, for the SDF phlogosphere
+	touch $gopherRoot/gophermap
+	entryDate=`date +%m-%d-%y`
+	# Make sure there isn't a post for that day, lest we overwrite it.
+	if [ ! -d $entryDate ]; then
+		mkdir $entryDate
+		chmod 755 $entryDate
+		cd $entryDate
+		touch gophermap
+		chmod 644 gophermap
+	else
+		echo "There is already a post for today."
+		AskToEdit
+	fi
+}
+
 # Updates the main phlog listing
 UpdatePhlogListing() {
-	# Just in case the user didn't specify a title
-	if [ "$postTitleAns" = "" ] ; then
-		echo -n "Do you want to create a blank post? (y/n) "
-		read blankPostAns
-		case $blankPostAns in
-			y* | Y* ) $postTitleAns="New Post" ;;
-			n* | N* ) echo "Goodbye, then." ; exit 1 ;;
-			* ) exit 1 ;;
-		esac	
-	fi
 	# If the user wants the post automatically added to the 
 	# main page, do it.
 	if [ $addTitleToMain = true ] ; then
@@ -81,65 +145,71 @@ UpdatePhlogListing() {
 	echo $postTitleAns >> gophermap
 	date "+%A %b %e %l:%M:%S %Y" >> gophermap
 	echo "------------------------------" >> gophermap
+	if [ -e "$cwd/$postFile" ] ; then
+		echo >> gophermap
+		cat "$cwd/$postFile" >> gophermap
+	fi
 	echo >> gophermap
 }
 
-
-if [ -d $gopherRoot ] ; then
-    cd $gopherRoot
-else
-	echo "You don't have a gopherspace set-up. Please run the mkgopher utility."
-	exit 1
-fi
-
-if [ -d $phlogDirName ] ; then
-	cd $phlogDirName
-else
-	echo -n "Do you want to create a phlog directory? (y/n) "
-	read phlogDirAns
-	case $phlogDirAns in
-		y* | Y* ) CreatePhlogDir ;;
-		n* | N* ) exit 1 ;;
-		* ) exit 1 ;;
-	esac
-fi
-
-echo -n "Would you like to create a phlog entry for today? (y/n) "
-read phlogAns
-case $phlogAns in
-	y* | Y* ) echo "Creating today's phlog entry..." ;;
-	n* | N* ) exit 0 ;;
-	* ) exit 1 ;;
-esac
-
-# Touch the main gophermap, for the SDF phlogosphere
-touch $gopherRoot/gophermap
-entryDate=`date +%m-%d-%y`
-# Make sure there isn't a post for that day, lest we overwrite it.
-if [ ! -d $entryDate ]; then
-	mkdir $entryDate
-	chmod 755 $entryDate
-	cd $entryDate
-	touch gophermap
-	chmod 644 gophermap
-	echo -n "Title: "
-	read postTitleAns
-	UpdatePhlogListing
-	echo -n "Would you like to edit the post with $editor? (y/n) "
+AskToEdit() {
+    echo -n "Would you like to edit the post with $editor? (y/n) "
 	read editorAns
 	case $editorAns in
 		y* | Y* ) $editor $gopherRoot/$phlogDirName/$entryDate/gophermap ;;
 		n* | N* ) exit 0 ;;
 		* ) exit 0 ;;
 	esac
+	exit 0
+} 
+
+#### Main script ####
+
+# Parse our options
+while getopts "sh" optionName; do
+	case $optionName in
+		s) silentMode=true ;;
+		h) DisplayHelp ;;
+		\?) echo "Unknown parameters. Please run mkphlog -h" ; exit 1 ;;
+	esac
+done
+shift $((OPTIND-1)); OPTIND=1
+
+postFile="$1"
+
+TestForGopherDirectory
+TestForPhlogDirectory
+
+# Different things for different modes
+if [ $silentMode = true ] ; then
+	if [ ! -e "$cwd/$1" ] ; then
+		echo "Post file does not exist."
+		exit 1
+	fi
+	# Just in case the user didn't specify a title
+	if [ "$2" = "" ] ; then
+		postTitleAns=$(echo $1 | sed -e 's/_/ /g') 
+	else
+		postTitleAns=$2
+	fi
+	CreatePhlogEntry
+	UpdatePhlogListing
 else
-	echo "There is already a post for today."
-	echo -n "Would you like to edit the post with $editor? (y/n) "
-	read editorAns
-	case $editorAns in
-		y* | Y* ) $editor $gopherRoot/$phlogDirName/$entryDate/gophermap ;;
+	echo -n "Would you like to create a phlog entry for today? (y/n) "
+	read phlogAns
+	case $phlogAns in
+		y* | Y* ) CreatePhlogEntry ;;
 		n* | N* ) exit 0 ;;
 		* ) exit 1 ;;
 	esac
+	# Get a title if one isn't provided
+	if [ "$2" = "" ] ; then
+		echo -n "Title: "
+		read postTitleAns
+	else
+		postTitleAns=$2
+	fi
+	UpdatePhlogListing
 fi
+
 exit 0
