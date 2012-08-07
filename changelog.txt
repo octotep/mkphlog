@@ -1,3 +1,7 @@
+Version 0.5
+Fixes:
+  -Fixes bug which neglects to ask the user to edit their new post
+
 Version 0.4
 Features:
   -Allow posts to be written in a separate file.
