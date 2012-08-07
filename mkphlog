@@ -5,7 +5,7 @@
 # Created by octotep; anyone can distribute, modify, and 
 # share this file however they please.
 #
-# Version 0.4
+# Version 0.5
 #
 # Please note, all date strings are in the form of mm/dd/yy(yy)
 
@@ -202,6 +202,9 @@ else
 		n* | N* ) exit 0 ;;
 		* ) exit 1 ;;
 	esac
+	if [ ! -e "$cwd/$1" ] ; then
+		echo "Post file does not exist. Creating new post anyway."
+	fi
 	# Get a title if one isn't provided
 	if [ "$2" = "" ] ; then
 		echo -n "Title: "
@@ -210,6 +213,9 @@ else
 		postTitleAns=$2
 	fi
 	UpdatePhlogListing
+	if [ ! -e "$cwd/$1" ] ; then
+		AskToEdit
+	fi
 fi
 
 exit 0
