@@ -2,10 +2,10 @@
 
 # mkphlog - a utility to ease the creation of phlogs.
 #           Organizes phlog posts in separate directories.
-# Created by octotep; anyone can distribute, modify, and 
+# Created by octotep; anyone can distribute, modify, and
 # share this file however they please.
 #
-# Version 0.5
+# Version 0.6
 #
 # Please note, all date strings are in the form of mm/dd/yy(yy)
 
@@ -39,36 +39,12 @@ addTitleToMain=true
 # Isn't used if $addTitleToMain is false
 titleLineCount=3
 
-# Tells the script whether or not to create a RSS feed
-# of the new phlog posts.
-createRssFeed=true
-
-# Tells the script whether or not to create a ATOM feed
-# of the new phlog posts
-createAtomFeed=true
-
-# This is the directory in which to save the RSS feed.
-rssFileDir="$gopherRoot/$phlogDirName"
-
-# Name of the rss file
-rssFileName="phlog.rss"
-
-# This is the directory in which to save the ATOM feed.
-atomFileDir="$gopherRoot/$phlogDirName"
-
-# Name of the tom file
-atomFileName="phlog.atom"
-
 # The URL your home gopher directory. Should contain
 # the $phlogDir. Ex. gopher://sdf.org/1/users/octotep/
 gopherUrl="gopher://sdf.org/1/users/$(whoami)"
 
 # The URL of your phlog. Should probably be $gopherUrl/$phlogDir/
 phlogUrl="$gopherUrl/$phlogDirName"
-
-# Create new date commands for the feeds
-alias rssDate="date '+%a, %d %b %G %T %z'"
-alias atomDate="date '+%Y-%m-%dT%T%z'"
 
 #Command-line flags
 silentMode=false
@@ -120,16 +96,6 @@ TestForPhlogDirectory() {
 	fi
 }
 
-# Test to make sure the feed files exist
-TestForFeeds () {
-	if ! [ -f $rssFileDir/$rssFileName ] ; then
-		CreateRssFile
-	fi
-	if ! [ -f $atomFileDir/$atomFileName ] ; then
-		CreateAtomFile
-	fi
-}
-
 # Creates the phlog directory if it dosen't already exist.
 CreatePhlogDir() {
 	mkdir $phlogDirName
@@ -163,131 +129,6 @@ CreatePhlogEntry() {
 	fi
 }
 
-# Create a base RSS file
-CreateRssFile() {
-	##echo "enter createRssFile"
-	echo -n "Enter the RSS feed name: "
-	read rssFeedName
-	echo -n "Enter a RSS feed discription: "
-	read rssFeedDescription
-	cd $rssFileDir
-	cat << EOF > $rssFileName.tmp
-/rss/@version=2.0
-/rss/channel/title=$(echo $rssFeedName | sed -e 's_&_&amp;_g' -e 's_<_\&lt;_g' -e 's_>_\&gt;_g' -e 's_\"_\&quot;_g' -e "s_'_\&apos;_g")
-/rss/channel/description=$(echo $rssFeedDescription | sed -e 's_&_&amp;_g' -e 's_<_\&lt;_g' -e 's_>_\&gt;_g' -e 's_\"_\&quot;_g' -e "s_'_\&apos;_g")
-/rss/channel/link=$phlogUrl
-/rss/channel/lastBuildDate=$(rssDate)
-/rss/channel/pubDate=$(rssDate)
-EOF
-	2xml < $rssFileName.tmp > $rssFileName.tmp2
-	# The only way to control xmllint's output is with an enviroment variable
-	export XMLLINT_INDENT="    "
-	xmllint --encode UTF-8 --format $rssFileName.tmp2 > $rssFileName
-	# Clean up
-	unset XMLLINT_INDENT
-	rm $rssFileName.tmp
-	rm $rssFileName.tmp2
-	##echo "Exit createRssFile"
-}
-
-# Update the RSS file with the new post.
-UpdateRssFile() {
-	##echo "Enter updateRssFile"
-	if [ "$postDesc" = "" ] ; then
-		postDesc=$postTitleAns
-	fi
-	cd $rssFileDir
-	guid=$(uuid -v 4)
-	xml2 < $rssFileName > $rssFileName.tmp
-	# Add the new post to the feed
-	sed '1,\_/rss/channel/pubDate_ {\_/rss/channel/pubDate_ a\
-'"$(echo "/rss/channel/item/title=$postTitleAns" | sed 's_\&_\&amp;_g' | sed -e 's_\<_\&lt;_g' -e 's_\>_\&gt;_g' -e 's_\"_\&quot;_g' -e "s_\'_\&apos;_g")"'\
-'"$(echo "/rss/channel/item/description=$postDesc" | sed 's_\&_\&amp;_g' | sed -e 's_\<_\&lt;_g' -e 's_\>_\&gt;_g' -e 's_\"_\&quot;_g' -e "s_\'_\&apos;_g")"'\
-'"$(echo "/rss/channel/item/link=$phlogUrl/$entryDate")"'\
-'"$(echo "/rss/channel/item/guid=$guid")"'\
-'"$(echo "/rss/channel/item/pubDate=$(rssDate)")"'
-	}' < $rssFileName.tmp > $rssFileName.tmp2
-	# Change the last built date
-	sed 's_\(/rss/channel/lastBuildDate=\).*_\1'"$(rssDate)"'_' < $rssFileName.tmp2 > $rssFileName.tmp
-	# Re-create the feed
-	2xml < $rssFileName.tmp > $rssFileName.tmp2
-	# The only way to control xmllint's output is with an enviroment variable
-	export XMLLINT_INDENT="    "
-	xmllint --format $rssFileName.tmp2 > $rssFileName
-	# Clean up
-	unset XMLLINT_INDENT
-	rm $rssFileName.tmp
-	rm $rssFileName.tmp2
-	##echo "exit UpdateRssFile"
-}
-
-# Create the base ATOM feed
-CreateAtomFile() {
-	##echo "Enter CreateAtomFile"
-	echo -n "Enter the feed name: "
-	read atomFeedTitle
-	echo -n "Enter a feed Subtitle: "
-	read atomFeedSubtitle
-	cd $atomFileDir
-	uuid=$(uuid -v 4)
-	cat << EOF > $atomFileName.tmp
-/feed/@xmlns=http://www.w3.org/2005/Atom
-/feed/title=$(echo $atomFeedTitle | sed -e 's_&_&amp;_g' -e 's_<_\&lt;_g' -e 's_>_\&gt;_g' -e 's_\"_\&quot;_g' -e "s_'_\&apos;_g")
-/feed/subtitle=$(echo $atomFeedSubtitle | sed -e 's_&_&amp;_g' -e 's_<_\&lt;_g' -e 's_>_\&gt;_g' -e 's_\"_\&quot;_g' -e "s_'_\&apos;_g")
-/feed/link/@href=$phlogUrl
-/feed/link/@rel=self
-/feed/link
-/feed/link/@href=$gopherUrl
-/feed/id=urn:uuid:$uuid
-/feed/updated=$(atomDate)
-EOF
-	2xml < $atomFileName.tmp > $atomFileName.tmp2
-	# The only way to control xmllint's output is with an enviroment variable
-	export XMLLINT_INDENT="    "
-	xmllint --format $atomFileName.tmp2 > $atomFileName
-	# Clean up
-	unset XMLLINT_INDENT
-	rm $atomFileName.tmp
-	rm $atomFileName.tmp2
-	##echo "exit CreateAtomFile"
-}
-
-# Update the ATOM feed with the new post
-UpdateAtomFile() {
-	##echo "Enter UpdateAtomFile"
-	# Author tag attributes
-	atomAuthor=`whoami`
-	atomEmail="$atomAuthor@sdf.lonestar.org"
-	if [ "$postDesc" = "" ] ; then
-		postDesc=$postTitleAns
-	fi
-	cd $atomFileDir
-	uuid=$(uuid -v 4)
-	xml2 < $atomFileName > $atomFileName.tmp
-	# Add the new post to the feed
-	sed '1,\_/feed/updated_ {\_/feed/updated_ a\
-'"$(echo "/feed/entry/title=$postTitleAns" | sed -e 's_\&_\&amp;_g' -e 's_\<_\&lt;_g' -e 's_\>_\&gt;_g' -e 's_\"_\&quot;_g' -e "s_\'_\&apos;_g")"'\
-'"$(echo "/feed/entry/summary=$postDesc" | sed -e 's_\&_\&amp;_g' -e 's_\<_\&lt;_g' -e 's_\>_\&gt;_g' -e 's_\"_\&quot;_g' -e "s_\'_\&apos;_g")"'\
-'"$(echo "/feed/entry/link/@href=$phlogUrl/$entryDate")"'\
-'"$(echo "/feed/entry/id=urn:uuid:$uuid")"'\
-'"$(echo "/feed/entry/updated=$(atomDate)")"'\
-'"$(echo "/feed/entry/author/name=$atomAuthor")"'\
-'"$(echo "/feed/entry/author/email=$atomEmail")"'
-	}' < $atomFileName.tmp > $atomFileName.tmp2
-	# Change the last built date
-	sed 's_\(/feed/updated=\).*_\1'"$(atomDate)"'_' < $atomFileName.tmp2 > $atomFileName.tmp
-	# Re-create the feed
-	2xml < $atomFileName.tmp > $atomFileName.tmp2
-	# The only way to control xmllint's output is with an enviroment variable
-	export XMLLINT_INDENT="    "
-	xmllint --format $atomFileName.tmp2 > $atomFileName
-	# Clean up
-	unset XMLLINT_INDENT
-	rm $atomFileName.tmp
-	rm $atomFileName.tmp2
-	##echo "exit UpdateAtomFile"
-}
-
 # Updates the main phlog listing. This is where the magic happens.
 UpdatePhlogListing() {
 	##echo "enter UpdatePhlogListing"
@@ -318,14 +159,6 @@ UpdatePhlogListing() {
 		cat "$cwd/$postFile" >> gophermap
 	fi
 	echo >> gophermap
-	# If the user wants feed files, update them
-	if [ $createRssFeed = true ] ; then
-		UpdateRssFile
-	fi
-	if [ $createAtomFeed = true ] ; then
-		UpdateAtomFile
-	fi
-	##echo "exit UpdatePhlogListing"
 }
 
 AskToEdit() {
@@ -337,7 +170,7 @@ AskToEdit() {
 		* ) exit 0 ;;
 	esac
 	exit 0
-} 
+}
 
 #### Main script ####
 
@@ -359,7 +192,7 @@ TestForFeeds
 
 # Different things for different modes
 if [ $silentMode = true ] ; then
-	if [ ! -e "$cwd/$1" ] ; then
+	if [ ! -f "$cwd/$1" ] ; then
 		echo "Post file does not exist."
 		exit 1
 	fi
@@ -379,7 +212,7 @@ else
 		n* | N* ) exit 0 ;;
 		* ) exit 1 ;;
 	esac
-	if [ ! -e "$cwd/$1" ] ; then
+	if [ ! -f "$cwd/$1" ] ; then
 		echo "Post file does not exist. Creating new post anyway."
 	fi
 	# Get a title if one isn't provided
@@ -395,7 +228,7 @@ else
 		read postDesc
 	fi
 	UpdatePhlogListing
-	if [ ! -e "$cwd/$1" ] ; then
+	if [ -e "$cwd/$1" ] ; then
 		AskToEdit
 	fi
 fi
