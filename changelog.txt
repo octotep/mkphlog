@@ -1,3 +1,12 @@
+Version 0.6 
+Fixes
+  -Fixes the bug that fixes the bug which neglects ot ask the user to edit their new post
+  -Fixed conditions which caused creating a post from a file to fail
+Removals
+  -Removed feed support, because it was messy and didn't work right anyways
+Improvements
+  -Code readibility - the feed editing code was terrible
+
 Version 0.5
 Fixes:
   -Fixes bug which neglects to ask the user to edit their new post
